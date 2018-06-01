@@ -1,2 +1,5 @@
 ---
-# defaults vars
+# memcache_list_server: groups['server_group_memcache']
+mcrouter_memcache_list_server: [memcache-1, memcache-2]
+mcrouter_deploy_prometheus_expoter: true
+mcrouter_address: "localhost:5000"
