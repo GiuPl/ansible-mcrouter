@@ -34,8 +34,28 @@ Tests are performed using [Molecule](http://molecule.readthedocs.org/en/latest/)
 
 Install Molecule or use `docker-compose run --rm molecule` to run a local Docker container, based on the [enterclousuite/molecule](https://hub.docker.com/r/fminzoni/molecule/) project, from where you can use `molecule`.
 
-1. Run `molecule create` to start the target Docker container on your local engine.  
-2. Use `molecule login` to log in to the running container.  
+For this role is required a openstask account
+
+and the expoter your environment variables like this
+
+``` bash
+export OS_AUTH_URL="https://myopenstaskprobvider.com/v2.0"
+export OS_REGION_NAME="my-reagion"
+export OS_TENANT_ID=tenantIDString (a lot of number)
+export OS_TENANT_NAME="projectName"
+export OS_USERNAME="projectName"
+export OS_PASSWORD="v3ryS3cr3t"
+export SWIFT_USERNAME=$OS_USERNAME
+export SWIFT_TENANTNAME=$OS_TENANT_NAME
+export SWIFT_PASSWORD=$OS_PASSWORD
+export SWIFT_AUTHURL=$OS_AUTH_URL
+export SWIFT_AUTHVERSION=2
+export PASSPHRASE=$OS_TENANT_ID
+export SWIFT_REGION=$OS_REGION_NAME
+```
+
+1. Run `molecule create` 
+2. Use `molecule login` to log in to vm.  
 3. Edit the role files.  
 4. Add other required roles (external) in the molecule/default/requirements.yml file.  
 5. Edit the molecule/default/playbook.yml.  
