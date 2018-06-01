@@ -1,0 +1,6 @@
+---
+
+- name: restart mcrouter
+  docker_container:
+    name: mcrouter
+    restart: yes

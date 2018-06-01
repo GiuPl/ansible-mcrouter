@@ -1,0 +1,39 @@
+---
+
+- name: install mcrouter config file
+  template: src=mcrouter.conf.j2 dest=/etc/mcrouter.conf
+  notify: restart mcrouter
+
+- name: Install docker-py 1.9.0 to fix Ansible issue 17495
+  apt:
+    name: python-pip
+    state: present
+
+- name: Install docker-py 1.9.0 to fix Ansible issue 17495
+  pip:
+    name: docker-py
+    version: 1.9.0
+    state: present
+
+- name: install mcrouter
+  docker_container:
+    name: mcrouter
+    image: jsecchiero/mcrouter
+    state: started
+    restart_policy: always
+    ports:
+      - 11213:30000
+    volumes:
+      - /etc/mcrouter.conf:/etc/mcrouter.conf
+
+- name: install mcrouter
+  docker_container:
+    name: prometheus_mcrouter-stats_expoter
+    image: quay.io/dev25/mcrouter_exporter
+    state: started
+    restart_policy: always
+    command: /usr/local/bin/mcrouter_exporter -mcrouter.address="{{mcrouter_address}}"
+    network_mode: host
+    ports:
+      - 9442:9442
+  when: mcrouter_deploy_prometheus_expoter
