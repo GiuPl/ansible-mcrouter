@@ -1,6 +1,7 @@
 ---
-
 - name: run the main role
   hosts: all
   roles:
-    - {role: ansible-mcrouter}
+    - role: ansible-mcrouter
+      mcrouter_address: localhost:11213
+  become: yes

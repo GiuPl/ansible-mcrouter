@@ -16,11 +16,17 @@ The role defines most of its variables in `defaults/main.yml`:
 
 ## Example Playbook
 
-Run with default vars:
+```yaml
+---
+- name: run the main role
+  hosts: all
+  roles:
+    - role: ansible-mcrouter
+      mcrouter_address: localhost:11213
+  become: yes
+```
 
-    - hosts: all
-      roles:
-        - { role: ansible-mcrouter }
+
 
 ## Testing
 

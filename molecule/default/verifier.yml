@@ -8,6 +8,7 @@
     goss_sha256sum: 31d04f98444ded26e2478fbdb3f5949cc9318bed13b5937598facc1818e1fce1.
     goss_test_directory: /tmp
     goss_format: documentation
+  became: yes
 
   tasks:
     - name: Download and install Goss

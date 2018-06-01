@@ -1,27 +1,117 @@
 ---
-- hosts: localhost
+- name: Create
+  hosts: localhost
   connection: local
-  gather_facts: no
-
+  gather_facts: false
+  no_log: "{{ not lookup('env', 'MOLECULE_DEBUG') | bool }}"
   vars:
-    molecule_file: "{{ lookup('env','MOLECULE_FILE') }}"
-    molecule_scenario_directory: "{{ lookup('env','MOLECULE_SCENARIO_DIRECTORY') }}"
-    molecule_yml: "{{ lookup('file', molecule_file) | from_yaml }}"
+    molecule_file: "{{ lookup('env', 'MOLECULE_FILE') }}"
+    molecule_instance_config: "{{ lookup('env', 'MOLECULE_INSTANCE_CONFIG') }}"
+    molecule_yml: "{{ lookup('file', molecule_file) | molecule_from_yaml }}"
+
+    ssh_user: ubuntu
+    ssh_port: 22
+
+    security_group_name: molecule
+    security_group_description: "Security group for testing Molecule"
+    security_group_rules:
+      - proto: tcp
+        port: "{{ ssh_port }}"
+        cidr: '0.0.0.0/0'
+      - proto: icmp
+        port: -1
+        cidr: '0.0.0.0/0'
+      - ethertype: IPv4
+        group: "{{ security_group.id }}"
+      - ethertype: IPv6
+        group: "{{ security_group.id }}"
+
+    keypair_name: molecule_key
+    keypair_path: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/id_rsa"
+
+    nova_image: GNU/Linux Ubuntu Server 16.04 Xenial Xerus x64
+    nova_flavor: e3standard.x1
   tasks:
+    - include: security_group.yml
+    - include: keypair.yml
+
+    - name: Create network
+      os_network:
+        name: molecule
+
+    - name: Create the subnet
+      os_subnet:
+        name: molecule
+        network_name: molecule
+        cidr: "10.2.0.0/24"
+        dns_nameservers:
+          - 8.8.8.8
+          - 8.8.4.4
+
+    - name: Gather facts about network for use with instance creation
+      os_networks_facts:
+
+    - name: Create the router
+      os_router:
+        name: ansible_filesystem
+        network: "{{ openstack_networks[0]['name'] }}"
+        interfaces: ["molecule"]
+
+    - name: Display all variables/facts known for a host
+      debug:
+        var: hostvars[inventory_hostname]
+
     - name: Create molecule instance(s)
-      docker_container:
+      os_server:
         name: "{{ item.name }}"
-        hostname: "{{ item.name }}"
-        image: solita/ubuntu-systemd:latest
-        command: /sbin/init
-        capabilities:
-          - SYS_ADMIN
-        volumes:
-          - /sys/fs/cgroup:/sys/fs/cgroup:ro
-        tmpfs:
-          - /run
-          - /run/lock
-        state: started
-        recreate: no
-        log_driver: none
+        image: "{{ item.image }}"
+        flavor: "{{ item.flavor }}"
+        security_groups: "{{ security_group_name }}"
+        key_name: "{{ keypair_name }}"
+        nics:
+          - net-name: "molecule"
+      register: server
       with_items: "{{ molecule_yml.platforms }}"
+      async: 7200
+      poll: 0
+
+    - name: Wait for instance(s) creation to complete
+      async_status:
+        jid: "{{ item.ansible_job_id }}"
+      register: os_jobs
+      until: os_jobs.finished
+      retries: 300
+      with_items: "{{ server.results }}"
+
+    - name: Populate instance config dict
+      set_fact:
+        instance_conf_dict: {
+          'instance': "{{ item.openstack.name }}",
+          'address': "{{ item.openstack.accessIPv4 }}",
+          'user': "{{ ssh_user }}",
+          'port': "{{ ssh_port }}",
+          'identity_file': "{{ keypair_path }}", }
+      with_items: "{{ os_jobs.results }}"
+      register: instance_config_dict
+      when: os_jobs.changed | bool
+
+    - name: Convert instance config dict to a list
+      set_fact:
+        instance_conf: "{{ instance_config_dict.results | map(attribute='ansible_facts.instance_conf_dict') | list }}"
+      when: os_jobs.changed | bool
+
+    - name: Dump instance config
+      copy:
+        # NOTE(retr0h): Workaround for Ansible 2.2.
+        #               https://github.com/ansible/ansible/issues/20885
+        content: "{{ instance_conf | to_json | from_json | molecule_to_yaml | molecule_header }}"
+        dest: "{{ molecule_instance_config }}"
+      when: os_jobs.changed | bool
+
+    - name: Wait for SSH
+      wait_for:
+        port: "{{ ssh_port }}"
+        host: "{{ item.address }}"
+        search_regex: SSH
+        delay: 10
+      with_items: "{{ lookup('file', molecule_instance_config) | molecule_from_yaml }}"

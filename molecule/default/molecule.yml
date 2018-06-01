@@ -2,11 +2,13 @@
 dependency:
   name: galaxy
 driver:
-  name: docker
+  name: openstack
 lint:
   name: yamllint
 platforms:
   - name: instance-1
+    image: "GNU/Linux Ubuntu Server 16.04 Xenial Xerus x64"
+    flavor: e3standard.x1
 provisioner:
   name: ansible
   options:

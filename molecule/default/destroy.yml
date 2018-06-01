@@ -1,15 +1,59 @@
 ---
-
-- hosts: localhost
+- name: Destroy
+  hosts: localhost
   connection: local
-  gather_facts: no
-
+  gather_facts: false
+  no_log: "{{ not lookup('env', 'MOLECULE_DEBUG') | bool }}"
   vars:
-    molecule_file: "{{ lookup('env','MOLECULE_FILE') }}"
-    molecule_yml: "{{ lookup('file', molecule_file) | from_yaml }}"
+    molecule_file: "{{ lookup('env', 'MOLECULE_FILE') }}"
+    molecule_instance_config: "{{ lookup('env', 'MOLECULE_INSTANCE_CONFIG') }}"
+    molecule_yml: "{{ lookup('file', molecule_file) | molecule_from_yaml }}"
+    keypair_name: molecule_key
+    keypair_path: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/id_rsa"
   tasks:
     - name: Destroy molecule instance(s)
-      docker_container:
+      os_server:
         name: "{{ item.name }}"
         state: absent
+      register: server
       with_items: "{{ molecule_yml.platforms }}"
+      async: 7200
+      poll: 0
+
+    - name: Wait for instance(s) deletion to complete
+      async_status:
+        jid: "{{ item.ansible_job_id }}"
+      register: os_jobs
+      until: os_jobs.finished
+      retries: 300
+      with_items: "{{ server.results }}"
+
+    - name: Destroy volume
+      os_volume:
+        size: 1
+        display_name: "{{ item.name }}"
+      with_items: "{{ molecule_yml.platforms }}"
+
+    - name: Remove ssh key
+      file:
+        name: "{{ keypair_path }}"
+        state: absent
+
+    - name: Delete remote keypair
+      os_keypair:
+        name: "{{ keypair_name }}"
+        state: absent
+
+    # Mandatory configuration for Molecule to function.
+
+    - name: Populate instance config
+      set_fact:
+        instance_conf: {}
+
+    - name: Dump instance config
+      copy:
+        # NOTE(retr0h): Workaround for Ansible 2.2.
+        #               https://github.com/ansible/ansible/issues/20885
+        content: "{{ instance_conf | to_json | from_json | molecule_to_yaml | molecule_header }}"
+        dest: "{{ molecule_instance_config }}"
+      when: os_jobs.changed | bool
