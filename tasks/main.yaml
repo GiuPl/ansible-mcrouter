@@ -34,6 +34,4 @@
     restart_policy: always
     command: /usr/local/bin/mcrouter_exporter -mcrouter.address="{{mcrouter_address}}"
     network_mode: host
-    ports:
-      - 9442:9442
   when: mcrouter_deploy_prometheus_expoter
