@@ -1,7 +1,7 @@
 {
   "pools": {
     "A": {
-      "servers": [ {% for memcache in mcrouter_memcache_list_server %} "{{ memcache }}:11211" {% if not loop.last %},{% endif %} {% endfor %} ]
+      "servers": [ {% for memcache in mcrouter_memcache_list_server %} "{{ memcache }}:11214" {% if not loop.last %},{% endif %} {% endfor %} ]
     }
   },
   "route": {
