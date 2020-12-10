@@ -12,7 +12,7 @@
 - name: install mcrouter
   docker_container:
     name: mcrouter
-    image: jsecchiero/mcrouter
+    image: giupl/mcrouter41
     state: started
     restart_policy: always
     ports:
