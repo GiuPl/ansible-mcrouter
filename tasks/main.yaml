@@ -16,7 +16,7 @@
     state: started
     restart_policy: always
     ports:
-      - 11213:11213
+      - 11213:30000
     volumes:
       - /etc/mcrouter.conf:/etc/mcrouter.conf
 
